@@ -1,101 +1,147 @@
-with attr as (
+with lpc as (
 select
 	s.visitor_id,
 	s.visit_date,
-	s.source as utm_source,
-	s.medium as utm_medium,
-	s.campaign as utm_campaign,
-	l.lead_id,
+	s."source",
+	s.medium,
+	s.campaign,
 	l.created_at,
 	l.amount,
 	l.closing_reason,
 	l.status_id,
-	row_number() over (
-            partition by s.visitor_id
-order by
 	case
-		when s.medium = 'organic' then 0
-		else 1
-	end desc,
-	s.visit_date desc
-        ) as count_m
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
 from
 	sessions as s
 left join leads as l
         on
 	s.visitor_id = l.visitor_id
-	and s.visit_date <= l.created_at
-)
-,
-aggr_data as (
-select
-	utm_source,
-	utm_medium,
-	utm_campaign,
-	date(visit_date) as visit_date,
-	count(visitor_id) as visitors_count,
-	count(case when created_at is not null then visitor_id end) as leads_count,
-	count(case when status_id = 142 then visitor_id end) as purchases_count,
-	sum(case when status_id = 142 then amount end) as revenue
-from
-	attr
 where
-	count_m = 1
-group by
-	utm_source,
-	utm_medium,
-	utm_campaign,
-	date(visit_date)
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 ),
 
-marketing_data as (
+lpc_view as (
 select
-	date(campaign_date) as visit_date,
+	*
+from
+	lpc
+order by
+	amount desc nulls last,
+	visit_date asc,
+	"source" asc,
+	medium asc,
+	campaign asc
+),
+lpc_revenue as (
+select
+	date_trunc('day',
+	visit_date)::date as visit_date,
+	"source",
+	medium,
+	campaign,
+	count(visitor_id) as visitors_count,
+	count(lead_id) as leads_count,
+	count(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then lead_id
+            end
+        ) as purch_count,
+	sum(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then amount
+            end
+        ) as revenue
+from
+	lpc_view
+group by
+	date_trunc('day',
+	visit_date)::date,
+	"source",
+	medium,
+	campaign
+order by
+	revenue desc nulls last,
+	visit_date asc,
+	visitors_count desc,
+	"source" asc,
+	medium asc,
+	campaign asc
+),
+vk_view as (
+select
+	date_trunc('day',
+	campaign_date)::date as campaign_date,
 	utm_source,
 	utm_medium,
 	utm_campaign,
-	sum(daily_spent) as total_cost
+	sum(daily_spent) as daily_spent
 from
-	ya_ads
+	vk_ads
+where
+	utm_medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 group by
-	date(campaign_date),
+	date_trunc('day',
+	campaign_date)::date,
 	utm_source,
 	utm_medium,
 	utm_campaign
-union all
+),
+
+ya_view as (
 select
-	date(campaign_date) as visit_date,
+	date_trunc('day',
+	campaign_date)::date as campaign_date,
 	utm_source,
 	utm_medium,
 	utm_campaign,
-	sum(daily_spent) as total_cost
+	sum(daily_spent) as daily_spent
 from
-	vk_ads
+	ya_ads
+where
+	utm_medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 group by
-	date(campaign_date),
+	date_trunc('day',
+	campaign_date)::date,
 	utm_source,
 	utm_medium,
 	utm_campaign
 )
 
 select
-	ad.visit_date,
-	ad.utm_source,
-	ad.utm_medium,
-	ad.utm_campaign,
-	md.total_cost,
-	ad.visitors_count,
-	ad.leads_count,
-	ad.purchases_count,
-	ad.revenue
+	lpcr.visit_date,
+	lpcr."source",
+	lpcr.medium,
+	lpcr.campaign,
+	lpcr.visitors_count,
+	lpcr.leads_count,
+	lpcr.purch_count,
+	lpcr.revenue,
+	coalesce(vk_view.daily_spent,
+	ya_view.daily_spent,
+	0) as total_cost
 from
-	aggr_data as ad
-left join marketing_data as md
+	lpc_revenue as lpcr
+left join vk_view
     on
-	ad.visit_date = md.visit_date
-	and lower(ad.utm_source) = md.utm_source
-	and lower(ad.utm_medium) = md.utm_medium
-	and lower(ad.utm_campaign) = md.utm_campaign
-order by
-	purchases_count desc
+	lpcr.visit_date = vk_view.campaign_date
+	and lpcr."source" = vk_view.utm_source
+	and lpcr.medium = vk_view.utm_medium
+	and lpcr.campaign = vk_view.utm_campaign
+left join ya_view
+    on
+	lpcr.visit_date = ya_view.campaign_date
+	and lpcr."source" = ya_view.utm_source
+	and lpcr.medium = ya_view.utm_medium
+	and lpcr.campaign = ya_view.utm_campaign
 limit 15;

@@ -1,42 +1,57 @@
-with visitors_with_leads as (
+/*Task 2*/
+with lpc as (
 select
 	s.visitor_id,
 	s.visit_date,
-	s.source as utm_source,
-	s.medium as utm_medium,
-	s.campaign as utm_campaign,
-	l.lead_id,
+	s."source",
+	s.medium,
+	s.campaign,
 	l.created_at,
 	l.amount,
 	l.closing_reason,
 	l.status_id,
-	row_number() over (
-            partition by s.visitor_id
-order by
 	case
-		when s.medium = 'organic' then 0
-		else 1
-	end desc,
-	s.visit_date desc
-        ) as count_m
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
 from
 	sessions as s
 left join leads as l
         on
 	s.visitor_id = l.visitor_id
-	and s.visit_date <= l.created_at
-)
-select
-	visitor_id, visit_date, utm_source, utm_medium, utm_campaign, lead_id, created_at, amount, closing_reason, status_id
-	
-from
-	visitors_with_leads
 where
-	count_m = 1
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+)
+
+select
+	lpc.visitor_id,
+	lpc.visit_date,
+	lpc.source as utm_source,
+	lpc.medium as utm_medium,
+	lpc.campaign as utm_campaign,
+	lpc.created_at,
+	lpc.amount,
+	lpc.closing_reason,
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
+from
+	lpc
+where
+	(lpc.lead_id != 'delete'
+		or lpc.lead_id is null)
+	and lpc.rn = 1
 order by
-	amount desc nulls last,
-	visit_date asc,
-	utm_source desc,
-	utm_medium desc,
-	utm_campaign desc
+	lpc.amount desc nulls last,
+	lpc.visit_date asc,
+	utm_source asc,
+	utm_medium asc,
+	utm_campaign asc
 limit 10;
