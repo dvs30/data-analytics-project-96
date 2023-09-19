@@ -1235,6 +1235,7 @@ select * from view_4
 where roi is not null and roi > 0
 order by roi desc
 
+
 /* ROI < 0 */
 with lpc as(
 select
@@ -1395,3 +1396,666 @@ FROM view_3
 select * from view_4
 where roi is not null and roi < 0
 order by roi desc
+
+/* Окупаемые каналы */
+with lpc as(
+select
+	s.visitor_id,
+	s.visit_date,
+	s."source",
+	s.medium,
+	s.campaign,
+	l.created_at,
+	l.amount,
+	l.closing_reason,
+	l.status_id,
+	case
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
+from
+	sessions as s
+left join leads as l
+        on
+	s.visitor_id = l.visitor_id
+where
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+),
+
+view as (
+    select
+	lpc.visitor_id,
+	lpc.visit_date,
+	lpc.source as utm_source,
+	lpc.medium as utm_medium,
+	lpc.campaign as utm_campaign,
+	lpc.created_at,
+	lpc.amount,
+	lpc.closing_reason,
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
+from
+	lpc
+where
+	(lpc.lead_id != 'delete'
+		or lpc.lead_id is null)
+	and lpc.rn = 1
+),
+
+amount as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        count(visitor_id) as visitors_count,
+        sum(case when lead_id is not null then 1 else 0 end) as leads_count,
+        sum(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then 1
+                else 0
+            end
+        ) as purchases_count,
+        sum(amount) as revenue
+    from view
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_1 as (
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from vk_ads
+    union all
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from ya_ads
+),
+
+cost as (
+    select
+        campaign_date as visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        sum(daily_spent) as total_cost
+    from view_1
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_2 as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        null as revenue,
+        null as visitors_count,
+        null as leads_count,
+        null as purchases_count,
+        total_cost
+    from cost
+    union all
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        revenue,
+        visitors_count,
+        leads_count,
+        purchases_count,
+        null as total_cost
+    from amount
+),
+view_3 as (
+select
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    sum(coalesce(total_cost, 0)) as total_cost,
+    sum(coalesce(revenue, 0)) as revenue
+from view_2
+group by
+    utm_source,
+    utm_medium,
+    utm_campaign
+order by total_cost desc
+),
+view_4 as (
+select 
+    *,
+    CASE WHEN total_cost = 0 THEN NULL ELSE ((revenue - total_cost) / total_cost) * 100 END AS roi
+FROM view_3
+)
+select
+*,
+revenue - total_cost as net
+from view_4
+where revenue - total_cost > 0 and roi is not null
+order by revenue - total_cost desc;
+
+/* Неокупаемые каналы */
+with lpc as(
+select
+	s.visitor_id,
+	s.visit_date,
+	s."source",
+	s.medium,
+	s.campaign,
+	l.created_at,
+	l.amount,
+	l.closing_reason,
+	l.status_id,
+	case
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
+from
+	sessions as s
+left join leads as l
+        on
+	s.visitor_id = l.visitor_id
+where
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+),
+
+view as (
+    select
+	lpc.visitor_id,
+	lpc.visit_date,
+	lpc.source as utm_source,
+	lpc.medium as utm_medium,
+	lpc.campaign as utm_campaign,
+	lpc.created_at,
+	lpc.amount,
+	lpc.closing_reason,
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
+from
+	lpc
+where
+	(lpc.lead_id != 'delete'
+		or lpc.lead_id is null)
+	and lpc.rn = 1
+),
+
+amount as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        count(visitor_id) as visitors_count,
+        sum(case when lead_id is not null then 1 else 0 end) as leads_count,
+        sum(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then 1
+                else 0
+            end
+        ) as purchases_count,
+        sum(amount) as revenue
+    from view
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_1 as (
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from vk_ads
+    union all
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from ya_ads
+),
+
+cost as (
+    select
+        campaign_date as visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        sum(daily_spent) as total_cost
+    from view_1
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_2 as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        null as revenue,
+        null as visitors_count,
+        null as leads_count,
+        null as purchases_count,
+        total_cost
+    from cost
+    union all
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        revenue,
+        visitors_count,
+        leads_count,
+        purchases_count,
+        null as total_cost
+    from amount
+),
+view_3 as (
+select
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    sum(coalesce(total_cost, 0)) as total_cost,
+    sum(coalesce(revenue, 0)) as revenue
+from view_2
+group by
+    utm_source,
+    utm_medium,
+    utm_campaign
+order by total_cost desc
+),
+view_4 as (
+select 
+    *,
+    CASE WHEN total_cost = 0 THEN NULL ELSE ((revenue - total_cost) / total_cost) * 100 END AS roi
+FROM view_3
+)
+select
+*,
+revenue - total_cost as net
+from view_4
+where revenue - total_cost < 0 and roi is not null
+order by revenue - total_cost desc;
+
+/* Неокупаемые каналы */
+with lpc as(
+select
+	s.visitor_id,
+	s.visit_date,
+	s."source",
+	s.medium,
+	s.campaign,
+	l.created_at,
+	l.amount,
+	l.closing_reason,
+	l.status_id,
+	case
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
+from
+	sessions as s
+left join leads as l
+        on
+	s.visitor_id = l.visitor_id
+where
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+),
+
+view as (
+    select
+	lpc.visitor_id,
+	lpc.visit_date,
+	lpc.source as utm_source,
+	lpc.medium as utm_medium,
+	lpc.campaign as utm_campaign,
+	lpc.created_at,
+	lpc.amount,
+	lpc.closing_reason,
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
+from
+	lpc
+where
+	(lpc.lead_id != 'delete'
+		or lpc.lead_id is null)
+	and lpc.rn = 1
+),
+
+amount as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        count(visitor_id) as visitors_count,
+        sum(case when lead_id is not null then 1 else 0 end) as leads_count,
+        sum(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then 1
+                else 0
+            end
+        ) as purchases_count,
+        sum(amount) as revenue
+    from view
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_1 as (
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from vk_ads
+    union all
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from ya_ads
+),
+
+cost as (
+    select
+        campaign_date as visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        sum(daily_spent) as total_cost
+    from view_1
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_2 as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        null as revenue,
+        null as visitors_count,
+        null as leads_count,
+        null as purchases_count,
+        total_cost
+    from cost
+    union all
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        revenue,
+        visitors_count,
+        leads_count,
+        purchases_count,
+        null as total_cost
+    from amount
+),
+view_3 as (
+select
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    sum(coalesce(total_cost, 0)) as total_cost,
+    sum(coalesce(revenue, 0)) as revenue
+from view_2
+group by
+    utm_source,
+    utm_medium,
+    utm_campaign
+order by total_cost desc
+),
+view_4 as (
+select 
+    *,
+    CASE WHEN total_cost = 0 THEN NULL ELSE ((revenue - total_cost) / total_cost) * 100 END AS roi
+FROM view_3
+)
+select
+*,
+revenue - total_cost as net
+from view_4
+where revenue = 0 and total_cost > 0
+order by revenue - total_cost desc;
+
+/* total result */
+with lpc as(
+select
+	s.visitor_id,
+	s.visit_date,
+	s."source",
+	s.medium,
+	s.campaign,
+	l.created_at,
+	l.amount,
+	l.closing_reason,
+	l.status_id,
+	case
+		when l.created_at < s.visit_date then 'delete'
+		else lead_id
+	end as lead_id,
+	row_number()
+            over (partition by s.visitor_id
+order by
+	s.visit_date desc)
+        as rn
+from
+	sessions as s
+left join leads as l
+        on
+	s.visitor_id = l.visitor_id
+where
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+),
+
+view as (
+    select
+	lpc.visitor_id,
+	lpc.visit_date,
+	lpc.source as utm_source,
+	lpc.medium as utm_medium,
+	lpc.campaign as utm_campaign,
+	lpc.created_at,
+	lpc.amount,
+	lpc.closing_reason,
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
+from
+	lpc
+where
+	(lpc.lead_id != 'delete'
+		or lpc.lead_id is null)
+	and lpc.rn = 1
+),
+
+amount as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        count(visitor_id) as visitors_count,
+        sum(case when lead_id is not null then 1 else 0 end) as leads_count,
+        sum(
+            case
+                when
+                    closing_reason = 'Успешная продажа' or status_id = 142
+                    then 1
+                else 0
+            end
+        ) as purchases_count,
+        sum(amount) as revenue
+    from view
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_1 as (
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from vk_ads
+    union all
+    select
+        campaign_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    from ya_ads
+),
+
+cost as (
+    select
+        campaign_date as visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        sum(daily_spent) as total_cost
+    from view_1
+    group by
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+),
+
+view_2 as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        null as revenue,
+        null as visitors_count,
+        null as leads_count,
+        null as purchases_count,
+        total_cost
+    from cost
+    union all
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        revenue,
+        visitors_count,
+        leads_count,
+        purchases_count,
+        null as total_cost
+    from amount
+),
+view_3 as (
+select
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    sum(coalesce(purchases_count, 0)) as purchases_count,
+    sum(coalesce(visitors_count, 0)) as visitors_count,
+    sum(coalesce(leads_count, 0)) as leads_count,
+    sum(coalesce(total_cost, 0)) as total_cost,
+    sum(coalesce(revenue, 0)) as revenue
+from view_2
+group by
+    utm_source,
+    utm_medium,
+    utm_campaign
+order by total_cost desc
+),
+view_4 as (
+select
+	*,
+    CASE WHEN visitors_count = 0 THEN NULL ELSE total_cost / visitors_count END AS cpu,
+    CASE WHEN leads_count = 0 THEN NULL ELSE total_cost / leads_count END AS cpl,
+    CASE WHEN purchases_count = 0 THEN NULL ELSE total_cost / purchases_count END AS cppu,
+    CASE WHEN total_cost = 0 THEN NULL ELSE ((revenue - total_cost) / total_cost) * 100 END AS roi
+FROM view_3
+)
+select
+sum(visitors_count) as total_visitors,
+sum(total_cost) as total_cost,
+sum(leads_count) as total_leads,
+sum(purchases_count) as total_purchases,
+sum(revenue) as total_revenue,
+round(sum(total_cost) / sum(visitors_count), 2) as total_cpu,
+round(sum(total_cost) / sum(leads_count), 2) as total_cpl,
+round(sum(total_cost) / sum(purchases_count), 2) as total_cppu,
+round((sum(revenue) - sum(total_cost)) * 100 / sum(total_cost), 2) as total_roi
+from view_4;
