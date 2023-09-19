@@ -34,14 +34,14 @@ select
 	lpc.source as utm_source,
 	lpc.medium as utm_medium,
 	lpc.campaign as utm_campaign,
-	case
-		when lpc.created_at < lpc.visit_date then 'delete'
-		else lead_id
-	end as lead_id,
 	lpc.created_at,
 	lpc.amount,
 	lpc.closing_reason,
-	lpc.status_id
+	lpc.status_id,
+	case
+		when lpc.created_at < lpc.visit_date then 'delete'
+		else lead_id
+	end as lead_id
 from
 	lpc
 where
