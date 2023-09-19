@@ -73,9 +73,11 @@ select
 	v.utm_source,
 	v.utm_medium,
 	v.utm_campaign,
-	coalesce(total_ya_spent,
-	0) + coalesce(total_vk_spent,
-	0) as total_cost,
+	case
+		when coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0) = 0
+                then NULL
+		else coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0)
+	end as total_cost,
 	count(v.lead_id) as leads_count,
 	sum(v.purchases) as purchases_count,
 	sum(coalesce(v.amount, 0)) as revenue
@@ -96,9 +98,11 @@ left join ya_view as ya
 where
 	v.rn = 1
 group by
-	coalesce(total_ya_spent,
-	0) + coalesce(total_vk_spent,
-	0),
+	case
+		when coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0) = 0
+                then NULL
+		else coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0)
+	end,
 	v.visit_date,
 	v.utm_source,
 	v.utm_medium,
