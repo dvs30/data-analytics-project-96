@@ -3,9 +3,9 @@ with lpc as (
 select
 	s.visitor_id,
 	s.visit_date,
-	s."source",
-	s.medium,
-	s.campaign,
+	s."source" as utm_source,
+	s.medium as utm_medium,
+	s.campaign as utm_campaign,
 	l.created_at,
 	l.amount,
 	l.closing_reason,
@@ -31,17 +31,14 @@ where
 select
 	lpc.visitor_id,
 	lpc.visit_date,
-	lpc.source as utm_source,
-	lpc.medium as utm_medium,
-	lpc.campaign as utm_campaign,
+	lpc.utm_source,
+	lpc.utm_medium,
+	lpc.utm_campaign,
+	lpc.lead_id,
 	lpc.created_at,
 	lpc.amount,
 	lpc.closing_reason,
-	lpc.status_id,
-	case
-		when lpc.created_at < lpc.visit_date then 'delete'
-		else lead_id
-	end as lead_id
+	lpc.status_id
 from
 	lpc
 where
