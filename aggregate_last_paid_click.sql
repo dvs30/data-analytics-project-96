@@ -1,8 +1,7 @@
 with view as (
 select
 	s.visitor_id,
-	to_char(s.visit_date,
-	'yyyy-mm-dd') as visit_date,
+	s.visit_date,
 	s."source" as utm_source,
 	s.medium as utm_medium,
 	s.campaign as utm_campaign,
@@ -11,17 +10,8 @@ select
 	l.amount,
 	l.closing_reason,
 	l.status_id,
-	case
-		when l.closing_reason = 'успешная продажа'
-		or l.status_id = 142
-                then 1
-		else 0
-	end as purchases,
 	row_number()
-            over (partition by s.visitor_id
-order by
-	visit_date desc)
-        as rn
+            over (partition by s.visitor_id order by visit_date desc) as rn
 from
 	sessions as s
 left join leads as l
@@ -32,85 +22,83 @@ where
 	medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 ),
 
-vk_view as (
-select
+view2 as(
+select 
+	to_char(visit_date, 'YYYY-MM-DD') as visit_date,
 	utm_source,
-	utm_medium,
-	utm_campaign,
-	to_char(campaign_date,
-	'yyyy-mm-dd') as vk_campaign_date,
-	sum(daily_spent) as total_vk_spent
-from
-	vk_ads
+    utm_medium,
+    utm_campaign,
+    count(visitor_id) as visitors_count,
+    sum(
+    	case 
+	    	when lead_id is not null then 1
+	    	else 0 
+    	end) as leads_count,
+	SUM(
+		case
+			when closing_reason = 'Успешная продажа' or status_id = 142 then 1
+			else 0
+		end) as purchases_count,
+	sum(amount) as revenue,
+	null as total_cost
+from view
+where view.rn = 1
 group by
-	to_char(campaign_date,
-	'yyyy-mm-dd'),
+	visit_date,
 	utm_source,
-	utm_medium,
-	utm_campaign
-),
+    utm_medium,
+    utm_campaign
 
-ya_view as (
-select
+    union all
+    select
+    to_char(campaign_date,
+	'yyyy-mm-dd') as visit_date,
+    utm_source,
+	utm_medium,
+	utm_campaign,
+	
+	null as revenue,
+	null as visitors_count,
+	null as leads_count,
+	null as purchases_count,
+	daily_spent as total_cost
+	from vk_ads
+	
+	union all
+	select
+	to_char(campaign_date,
+	'yyyy-mm-dd') as visit_date,
 	utm_source,
 	utm_medium,
 	utm_campaign,
-	to_char(campaign_date,
-	'yyyy-mm-dd') as ya_campaign_date,
-	sum(daily_spent) as total_ya_spent
-from
-	ya_ads
-group by
-	to_char(campaign_date,
-	'yyyy-mm-dd'),
-	utm_source,
-	utm_medium,
-	utm_campaign
+	null as revenue,
+	null as visitors_count,
+	null as leads_count,
+	null as purchases_count,
+	daily_spent as total_cost
+	from ya_ads    
 )
 select
 	v.visit_date,
-	count(v.visitor_id) as visitors_count,
 	v.utm_source,
 	v.utm_medium,
 	v.utm_campaign,
-	case
-		when coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0) = 0
-                then NULL
-		else coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0)
-	end as total_cost,
-	count(v.lead_id) as leads_count,
-	sum(v.purchases) as purchases_count,
-	sum(coalesce(v.amount, 0)) as revenue
+	sum(v.visitors_count) as visitors_count,
+	sum(v.total_cost) as total_cost,
+	sum(v.leads_count) as leads_count,
+	sum(v.purchases_count) as purchases_count,
+	sum(v.revenue) as revenue
 from
-	view as v
-left join vk_view as vk
-    on
-	v.visit_date = vk.vk_campaign_date
-	and v.utm_source = vk.utm_source
-	and v.utm_medium = vk.utm_medium
-	and v.utm_campaign = vk.utm_campaign
-left join ya_view as ya
-    on
-	v.visit_date = ya.ya_campaign_date
-	and v.utm_source = ya.utm_source
-	and v.utm_medium = ya.utm_medium
-	and v.utm_campaign = ya.utm_campaign
-where
-	v.rn = 1
+	view2 as v
 group by
-	case
-		when coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0) = 0
-                then NULL
-		else coalesce(total_ya_spent, 0) + coalesce(total_vk_spent, 0)
-	end,
 	v.visit_date,
 	v.utm_source,
 	v.utm_medium,
 	v.utm_campaign
 order by
-	sum(coalesce(v.amount, 0)) desc nulls last,
+	sum(v.revenue) desc nulls last,
 	v.visit_date asc,
-	count(v.visitor_id) desc,
+	sum(v.visitors_count) desc,
 	v.utm_source asc,
 	v.utm_medium asc,
 	v.utm_campaign asc
