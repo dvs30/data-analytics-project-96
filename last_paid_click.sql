@@ -18,17 +18,7 @@ left join leads as l on s.visitor_id = l.visitor_id
 where
 	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 	)
-select
-	visitor_id,
-	visit_date,
-	utm_source,
-	utm_medium,
-	utm_campaign,
-	lead_id,
-	created_at,
-	amount,
-	closing_reason,
-	status_id
+select visitor_id, visit_date, utm_source, utm_medium, utm_campaign, lead_id, created_at, amount, closing_reason, status_id
 from lpc
 where (lead_id != 'delete' or lead_id is null) and rn = 1
 order by
