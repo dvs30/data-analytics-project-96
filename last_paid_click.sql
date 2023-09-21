@@ -11,7 +11,7 @@ select
 	l.status_id,
 	case
 		when l.created_at < s.visit_date then 'delete'
-		else lead_id
+		else l.lead_id
 	end as lead_id,
 	row_number()
             over (partition by s.visitor_id
