@@ -13,11 +13,9 @@ select
 	row_number() over (partition by s.visitor_id order by s.visit_date desc) as rn
 from
 	sessions as s
-left join leads as l
-        on s.visitor_id = l.visitor_id
+left join leads as l on s.visitor_id = l.visitor_id
 where
-	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
-)
+	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social'))
 select
 	visitor_id,
 	visit_date,
@@ -29,8 +27,7 @@ select
 	amount,
 	closing_reason,
 	status_id
-from
-	lpc
+from lpc
 where (lead_id != 'delete' or lead_id is null) and rn = 1
 order by
 	amount desc nulls last,
