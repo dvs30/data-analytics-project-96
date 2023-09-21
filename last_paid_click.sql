@@ -9,24 +9,15 @@ select
 	l.amount,
 	l.closing_reason,
 	l.status_id,
-	case
-		when l.created_at < s.visit_date then 'delete'
-		else l.lead_id
-	end as lead_id,
-	row_number()
-            over (partition by s.visitor_id
-order by
-	s.visit_date desc)
-        as rn
+	case when l.created_at < s.visit_date then 'delete' else l.lead_id end as lead_id,
+	row_number() over (partition by s.visitor_id order by s.visit_date desc) as rn
 from
 	sessions as s
 left join leads as l
-        on
-	s.visitor_id = l.visitor_id
+        on s.visitor_id = l.visitor_id
 where
 	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 )
-
 select
 	visitor_id,
 	visit_date,
@@ -40,10 +31,7 @@ select
 	status_id
 from
 	lpc
-where
-	(lead_id != 'delete'
-		or lead_id is null)
-	and rn = 1
+where (lead_id != 'delete' or lead_id is null) and rn = 1
 order by
 	amount desc nulls last,
 	visit_date asc,
