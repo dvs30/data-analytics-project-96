@@ -61,12 +61,10 @@ limit 10;
 
 /* Количество уникальных посетителей за месяц*/
 select
-	to_char(visit_date,
-	'month') as month,
+	to_char(visit_date, 'month') as month,
 	count(distinct visitor_id) as uniq_visitors_count
 from sessions s
-group by to_char(visit_date,
-	'month');
+group by to_char(visit_date, 'month');
 
 /* Количество уникальных посетителей. 
  * Топ 4 по источникам*/
@@ -94,8 +92,7 @@ select
 		else 'other'
 	end as "source",
 	count(distinct visitor_id) as visitors_count
-from
-	sessions
+from sessions
 group by date_trunc('day', visit_date),	"source"
 )
 select visit_date, "source", sum(visitors_count) as total from view
@@ -153,8 +150,7 @@ select
 		else 0
 	end as leed_amount,
 	to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as date
-from
-	leads
+from leads
 order by date
 ), view_1 as(
 select
@@ -195,8 +191,7 @@ select
 		else 0
 	end as leed_amount, 
 	to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as date
-from
-	leads
+from leads
 order by date
 )
 select
