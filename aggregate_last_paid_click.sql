@@ -16,8 +16,7 @@ from
 left join leads as l
 on s.visitor_id = l.visitor_id and s.visit_date <= l.created_at
 where s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
-),
-view2 as(
+), view2 as (
 select
 	to_char(visit_date,
 	'YYYY-MM-DD') as visit_date,
@@ -42,8 +41,7 @@ group by
 	utm_campaign
 union all
 select
-	to_char(campaign_date,
-	'yyyy-mm-dd') as visit_date,
+	to_char(campaign_date, 'yyyy-mm-dd') as visit_date,
 	utm_source,
 	utm_medium,
 	utm_campaign,
@@ -55,8 +53,7 @@ select
 from vk_ads
 union all
 select
-	to_char(campaign_date,
-	'yyyy-mm-dd') as visit_date,
+	to_char(campaign_date, 'yyyy-mm-dd') as visit_date,
 	utm_source,
 	utm_medium,
 	utm_campaign,
@@ -77,7 +74,7 @@ select
 	sum(leads_count) as leads_count,
 	sum(purchases_count) as purchases_count,
 	sum(revenue) as revenue
-from view2 as v
+from view2
 group by
 	visit_date,
 	utm_source,
