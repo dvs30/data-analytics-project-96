@@ -1,4 +1,4 @@
-with view as (
+with raw as (
 select
 	s.visitor_id,
 	s.visit_date,
@@ -41,8 +41,8 @@ select
 		end) as purchases_count,
 	sum(amount) as revenue,
 	null as total_cost
-from view
-where view.rn = 1
+from raw
+where raw.rn = 1
 group by
 	visit_date,
 	utm_source,
