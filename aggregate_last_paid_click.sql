@@ -34,7 +34,7 @@ select
 	    	when lead_id is not null then 1
 	    	else 0 
     	end) as leads_count,
-	SUM(
+	sum(
 		case
 			when closing_reason = 'Успешная продажа' or status_id = 142 then 1
 			else 0

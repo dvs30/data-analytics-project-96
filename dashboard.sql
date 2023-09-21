@@ -105,7 +105,7 @@ group by "source", visit_date
 order by date_trunc('day', visit_date),	sum(visitors_count) desc;
 
 
-/* Дашборд Коэффициент липучести */
+/* Коэффициент липучести */
 with mau as (
 select
 	count(distinct visitor_id) as mau
@@ -228,30 +228,11 @@ select
 	daily_spent
 from
 	ya_ads  
-),
-view_1 as(
+)
 select
-	campaign_name,
-	utm_source,
-	utm_medium,
-	utm_campaign,
-	utm_content,
-	campaign_date,
 	sum(daily_spent) as total_spent
 from
-	view
-group by
-	campaign_name,
-	utm_source,
-	utm_medium,
-	utm_campaign,
-	utm_content,
-	campaign_date
-        )
-select
-	sum(total_spent) as total_spent
-from
-	view_1;
+	view;
 
 /* Общий расход по дням */
 with view as(
@@ -508,34 +489,74 @@ group by utm_content
 order by sum(total_spent) desc;
 
 /* Расчет воронки */
-with view as(
+
+with view as (
 select
-	'attendance' as metric,
-	count(*)
+	s.visitor_id,
+	s.visit_date,
+	s."source" as utm_source,
+	s.medium as utm_medium,
+	s.campaign as utm_campaign,
+	l.lead_id ,
+	l.created_at,
+	l.amount,
+	l.closing_reason,
+	l.status_id,
+	row_number()
+            over (partition by s.visitor_id order by visit_date desc) as rn
 from
-	sessions
+	sessions as s
+left join leads as l
+        on
+	s.visitor_id = l.visitor_id
+	and visit_date <= created_at
+),
+
+view2 as(
+select 
+	to_char(visit_date, 'YYYY-MM-DD') as visit_date,
+	utm_source,
+    utm_medium,
+    utm_campaign,
+    count(visitor_id) as visitors_count,
+    sum(
+    	case 
+	    	when lead_id is not null then 1
+	    	else 0 
+    	end) as leads_count,
+	sum(
+		case
+			when closing_reason = 'Успешная продажа' or status_id = 142 then 1
+			else 0
+		end) as purchases_count,
+	sum(amount) as revenue,
+	null as total_cost
+from view
+where view.rn = 1 
+group by
+	visit_date,
+	utm_source,
+    utm_medium,
+    utm_campaign
+), view3 as(
+select
+'attendance' as metric,
+sum(visitors_count) as total
+from view2
 union all
 select
 	'leads' as metric,
-	count(*)
+sum(leads_count) as total
 from
-	leads
-union all
+	view2
+	union all
 select
-	'success leads' as metric,
-	count(*)
+	'success_leads' as metric,
+sum(purchases_count) as total
 from
-	leads
-where
-	amount > 0
+	view2
 )
-select
-	metric as metric,
-	sum(count) as total
-from
-	view
-group by
-	metric;
+select * from view3;
 
 /* LPC */
 
