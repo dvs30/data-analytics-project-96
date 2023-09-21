@@ -18,7 +18,8 @@ left join leads as l on s.visitor_id = l.visitor_id
 where
 	s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 	)
-	select
+	
+select
 	visitor_id,
 	visit_date,
 	utm_source,
