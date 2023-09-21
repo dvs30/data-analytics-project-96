@@ -10,15 +10,15 @@ l.created_at,
 l.amount,
 l.closing_reason,
 l.status_id,
-row_number() over (partition by s.visitor_id order by visit_date desc) as rn
+row_number() over (partition by s.visitor_id order by s.visit_date desc) as rn
 from
 sessions as s
 left join leads as l
 on
 s.visitor_id = l.visitor_id
-and visit_date <= created_at
+and s.visit_date <= l.created_at
 where
-medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+s.medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
 ), view2 as(
 select
 to_char(visit_date, 'YYYY-MM-DD') as visit_date,
