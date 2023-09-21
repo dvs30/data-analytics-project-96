@@ -79,27 +79,27 @@ group by
 	from ya_ads    
 )
 select
-	v.visit_date,
-	v.utm_source,
-	v.utm_medium,
-	v.utm_campaign,
-	sum(v.visitors_count) as visitors_count,
-	sum(v.total_cost) as total_cost,
-	sum(v.leads_count) as leads_count,
-	sum(v.purchases_count) as purchases_count,
-	sum(v.revenue) as revenue
+	visit_date,
+	utm_source,
+	utm_medium,
+	utm_campaign,
+	sum(visitors_count) as visitors_count,
+	sum(total_cost) as total_cost,
+	sum(leads_count) as leads_count,
+	sum(purchases_count) as purchases_count,
+	sum(revenue) as revenue
 from
 	view2 as v
 group by
-	v.visit_date,
-	v.utm_source,
-	v.utm_medium,
-	v.utm_campaign
+	visit_date,
+	utm_source,
+	utm_medium,
+	utm_campaign
 order by
-	sum(v.revenue) desc nulls last,
-	v.visit_date asc,
-	sum(v.visitors_count) desc,
-	v.utm_source asc,
-	v.utm_medium asc,
-	v.utm_campaign asc
+	sum(revenue) desc nulls last,
+	visit_date asc,
+	sum(visitors_count) desc,
+	utm_source asc,
+	utm_medium asc,
+	utm_campaign asc
 limit 15;

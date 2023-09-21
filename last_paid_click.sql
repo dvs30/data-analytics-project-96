@@ -1,4 +1,3 @@
-/*Task 2*/
 with lpc as (
 select
 	s.visitor_id,
@@ -29,25 +28,25 @@ where
 )
 
 select
-	lpc.visitor_id,
-	lpc.visit_date,
-	lpc.utm_source,
-	lpc.utm_medium,
-	lpc.utm_campaign,
-	lpc.lead_id,
-	lpc.created_at,
-	lpc.amount,
-	lpc.closing_reason,
-	lpc.status_id
+	visitor_id,
+	visit_date,
+	utm_source,
+	utm_medium,
+	utm_campaign,
+	lead_id,
+	created_at,
+	amount,
+	closing_reason,
+	status_id
 from
 	lpc
 where
-	(lpc.lead_id != 'delete'
-		or lpc.lead_id is null)
-	and lpc.rn = 1
+	(lead_id != 'delete'
+		or lead_id is null)
+	and rn = 1
 order by
-	lpc.amount desc nulls last,
-	lpc.visit_date asc,
+	amount desc nulls last,
+	visit_date asc,
 	utm_source asc,
 	utm_medium asc,
 	utm_campaign asc

@@ -1,11 +1,9 @@
 /* Общее количество посещений платформы за месяц*/
 select
-	to_char(visit_date,
-	'month') as month,
+	to_char(visit_date, 'month') as month,
 	count(visitor_id) as visitors_count
 from sessions s
-group by to_char(visit_date,
-	'month');
+group by to_char(visit_date, 'month');
 
 /* Общее количество посещений платформы по дням*/
 with view as(
