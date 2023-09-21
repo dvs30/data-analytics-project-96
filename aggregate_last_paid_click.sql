@@ -27,7 +27,7 @@ select
 		when raw.lead_id is not null then 1 else 0
 		end) as leads_count,
 	sum(case
-		when raw.closing_reason = 'Успешная продажа' or raw.status_id = 142 then 1 else 0
+		when raw.closing_reason = 'Успешная продажа' then 1 else 0
 		end) as purchases_count,
 	sum(raw.amount) as revenue,
 	null as total_cost
